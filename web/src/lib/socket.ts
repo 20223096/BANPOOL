@@ -11,10 +11,12 @@ export function getSocket(): Socket {
   if (!socket) {
     const url = getSocketUrl();
     socket = io(url, {
-      transports: ["websocket", "polling"],
+      /** websocket만 먼저 쓰면 일부 환경에서 첫 핸드셰이크가 실패했다가 connect_error만 나고 끊기는 경우가 있어 polling을 앞에 둡니다. */
+      transports: ["polling", "websocket"],
       reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
+      reconnectionAttempts: 8,
+      reconnectionDelay: 800,
+      timeout: 20000,
     });
   }
   return socket;
@@ -22,23 +24,21 @@ export function getSocket(): Socket {
 
 /**
  * 소켓이 붙을 때까지 기다립니다.
- * 배포에서 env 누락·백엔드 다운 시 여기서 실패로 떨어집니다.
+ * 주의: connect_error는 재시도 과정에서도 날 수 있어 "첫 에러"로 실패 판정하지 않습니다.
+ * (이전 버전은 여기서 잘못 막혀 배포 환경에서 항상 실패하는 경우가 있었습니다.)
  */
-export function waitForSocketConnection(timeoutMs = 12000): Promise<boolean> {
+export function waitForSocketConnection(timeoutMs = 20000): Promise<boolean> {
   const s = getSocket();
   if (s.connected) return Promise.resolve(true);
   return new Promise((resolve) => {
-    const finish = (ok: boolean) => {
+    const done = (ok: boolean) => {
       clearTimeout(timer);
       s.off("connect", onConnect);
-      s.off("connect_error", onErr);
       resolve(ok);
     };
-    const onConnect = () => finish(true);
-    const onErr = () => finish(false);
-    const timer = setTimeout(() => finish(false), timeoutMs);
+    const onConnect = () => done(true);
+    const timer = setTimeout(() => done(false), timeoutMs);
     s.once("connect", onConnect);
-    s.once("connect_error", onErr);
     if (!s.connected) s.connect();
   });
 }

@@ -19,17 +19,34 @@ import {
 } from "./rooms.js";
 
 const PORT = Number(process.env.PORT) || 4000;
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:3000";
+/** 콤마로 여러 개: https://a.vercel.app,https://b.vercel.app */
+const CLIENT_ORIGIN_RAW = process.env.CLIENT_ORIGIN || "http://localhost:3000";
+const ALLOWED_ORIGINS = CLIENT_ORIGIN_RAW.split(",")
+  .map((s) => s.trim().replace(/\/$/, ""))
+  .filter(Boolean);
 
 const app = express();
-app.use(cors({ origin: CLIENT_ORIGIN }));
+app.use(
+  cors({
+    origin(origin, cb) {
+      if (!origin) return cb(null, true);
+      if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+      cb(null, false);
+    },
+    credentials: false,
+  }),
+);
 app.get("/health", (_req, res) => {
   res.json({ ok: true, name: "BANPOOL" });
 });
 
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: CLIENT_ORIGIN, methods: ["GET", "POST"] },
+  cors: {
+    origin: ALLOWED_ORIGINS.length === 1 ? ALLOWED_ORIGINS[0] : ALLOWED_ORIGINS,
+    methods: ["GET", "POST"],
+    credentials: false,
+  },
 });
 
 const socketRoom = new Map<string, { roomId: string; playerId: string }>();
@@ -222,6 +239,6 @@ setInterval(() => {
   }
 }, 1000);
 
-server.listen(PORT, () => {
-  console.log(`BANPOOL server listening on :${PORT} (cors ${CLIENT_ORIGIN})`);
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`BANPOOL listening on 0.0.0.0:${PORT} cors=${ALLOWED_ORIGINS.join("|")}`);
 });
