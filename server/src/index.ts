@@ -41,6 +41,9 @@ app.use(
     credentials: false,
   }),
 );
+app.get("/", (_req, res) => {
+  res.type("text/plain").send("BANPOOL API — GET /health for JSON");
+});
 app.get("/health", (_req, res) => {
   res.json({ ok: true, name: "BANPOOL" });
 });
@@ -102,19 +105,19 @@ function leaveFromSocketImmediate(socketId: string): void {
 }
 
 io.on("connection", (socket) => {
-  socket.on("create_room", (payload: { nickname: string }, ack) => {
+  socket.on("create_room", (payload: { nickname: string; character?: string }, ack) => {
     const nick = String(payload?.nickname ?? "");
-    const { room, player } = createRoom(nick, socket.id);
+    const { room, player } = createRoom(nick, socket.id, payload?.character);
     socket.join(room.id);
     socketRoom.set(socket.id, { roomId: room.id, playerId: player.id });
     ack?.({ ok: true, roomId: room.id, playerId: player.id, room: sanitizeRoom(room) });
     broadcastRoom(room.id);
   });
 
-  socket.on("join_room", (payload: { roomId: string; nickname: string }, ack) => {
+  socket.on("join_room", (payload: { roomId: string; nickname: string; character?: string }, ack) => {
     const roomId = String(payload?.roomId ?? "").toUpperCase();
     const nick = String(payload?.nickname ?? "");
-    const result = joinRoom(roomId, nick, socket.id);
+    const result = joinRoom(roomId, nick, socket.id, payload?.character);
     if (!result.ok) {
       ack?.({ ok: false, reason: result.reason });
       return;

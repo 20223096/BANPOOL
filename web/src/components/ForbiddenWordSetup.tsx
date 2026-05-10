@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { RoomState } from "@/lib/types";
-import { Avatar } from "@/components/Avatar";
+import { CharacterSprite } from "@/components/CharacterSprite";
 import { cn } from "@/lib/cn";
 
 type ForbiddenWordSetupProps = {
@@ -40,7 +40,7 @@ export function ForbiddenWordSetup({ room, myId, onSubmit }: ForbiddenWordSetupP
               className="flex flex-col gap-2 rounded-2xl border-2 border-sky-100 bg-sky-50/50 p-3"
             >
               <div className="flex items-center gap-2">
-                <Avatar nickname={p.nickname} color={p.avatarColor} size="sm" />
+                <CharacterSprite id={p.character} size={40} className="h-10 w-10 rounded-xl ring-2 ring-white shadow-sm" />
                 <p className="text-sm font-bold text-slate-800">
                   <span className="text-sky-600">{p.nickname}</span>님의 금지어
                 </p>

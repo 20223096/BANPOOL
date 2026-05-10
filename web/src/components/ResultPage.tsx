@@ -1,5 +1,6 @@
 import type { PublicPlayer } from "@/lib/types";
 import { cn } from "@/lib/cn";
+import { CharacterSprite } from "@/components/CharacterSprite";
 
 type ResultPageProps = {
   players: PublicPlayer[];
@@ -20,6 +21,7 @@ export function ResultPage({ players, myId, canControl, onAgain, onLobby }: Resu
         <h2 className="mt-1 text-3xl font-black text-slate-900">우승자</h2>
         {winner ? (
           <div className="mt-4 rounded-3xl bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-200 p-4 shadow-lg ring-4 ring-white">
+            <CharacterSprite id={winner.character} size={72} className="mx-auto mb-2 drop-shadow-md" />
             <p className="text-xs font-bold uppercase tracking-widest text-amber-900/70">1st</p>
             <p className="text-2xl font-black text-amber-950">{winner.nickname}</p>
             <p className="text-sm font-bold text-amber-900">{winner.score}점</p>
@@ -36,12 +38,9 @@ export function ResultPage({ players, myId, canControl, onAgain, onLobby }: Resu
               p.id === myId && "ring-2 ring-sky-300",
             )}
           >
-            <span className="flex items-center gap-2 font-semibold text-slate-800">
+            <span className="flex min-w-0 items-center gap-2 font-semibold text-slate-800">
               <span className="text-slate-400">#{i + 1}</span>
-              <span
-                className="h-3 w-3 rounded-full border border-white"
-                style={{ backgroundColor: p.avatarColor }}
-              />
+              <CharacterSprite id={p.character} size={24} className="h-6 w-6 shrink-0 rounded-full ring-2 ring-white" />
               {p.nickname}
               {p.id === myId ? <span className="text-[10px] font-bold text-sky-600">(나)</span> : null}
             </span>

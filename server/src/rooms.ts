@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import type { ChatEntry, Player, Room } from "./types.js";
+import { normalizeCharacterId } from "./characters.js";
 import {
   AVATAR_COLORS,
   GAME_DURATION_MS,
@@ -9,7 +10,7 @@ import {
   PENALTY_ANIM_MS,
   PENALTY_SCORE,
   START_SCORE,
-  TOPICS,
+  BALANCE_GAME_TOPICS,
 } from "./constants.js";
 
 const rooms = new Map<string, Room>();
@@ -41,7 +42,7 @@ function pickAvatarColor(existing: Player[]): string {
 }
 
 function pickTopic(): string {
-  return TOPICS[Math.floor(Math.random() * TOPICS.length)]!;
+  return BALANCE_GAME_TOPICS[Math.floor(Math.random() * BALANCE_GAME_TOPICS.length)]!;
 }
 
 function clampPosition(x: number, y: number): { x: number; y: number } {
@@ -95,17 +96,19 @@ function ensureHost(room: Room): void {
   }
 }
 
-export function createRoom(nickname: string, socketId: string): {
+export function createRoom(nickname: string, socketId: string, characterRaw?: unknown): {
   room: Room;
   player: Player;
 } {
   const roomId = generateRoomCode();
   const playerId = randomUUID();
   const spawn = randomSpawn();
+  const character = normalizeCharacterId(characterRaw);
   const player: Player = {
     id: playerId,
     nickname: nickname.trim().slice(0, 16) || "Player",
     avatarColor: pickAvatarColor([]),
+    character,
     x: spawn.x,
     y: spawn.y,
     score: START_SCORE,
@@ -134,6 +137,7 @@ export function joinRoom(
   roomId: string,
   nickname: string,
   socketId: string,
+  characterRaw?: unknown,
 ): { ok: true; room: Room; player: Player } | { ok: false; reason: string } {
   const key = roomId.toUpperCase();
   const room = rooms.get(key);
@@ -147,10 +151,12 @@ export function joinRoom(
   }
   const playerId = randomUUID();
   const spawn = randomSpawn();
+  const character = normalizeCharacterId(characterRaw);
   const player: Player = {
     id: playerId,
     nickname: trimmed,
     avatarColor: pickAvatarColor(room.players),
+    character,
     x: spawn.x,
     y: spawn.y,
     score: START_SCORE,
@@ -409,6 +415,7 @@ export function sanitizeRoom(room: Room) {
       id: p.id,
       nickname: p.nickname,
       avatarColor: p.avatarColor,
+      character: p.character,
       x: p.x,
       y: p.y,
       score: p.score,

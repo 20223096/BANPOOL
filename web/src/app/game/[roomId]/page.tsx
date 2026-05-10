@@ -1,24 +1,23 @@
 "use client";
 
-import { use, useEffect, useRef, useState } from "react";
+import { use, useCallback, useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { Avatar } from "@/components/Avatar";
-import { ChatBox } from "@/components/ChatBox";
-import { GameTimer } from "@/components/GameTimer";
-import { PenaltyAnimation } from "@/components/PenaltyAnimation";
-import { PoolMap } from "@/components/PoolMap";
-import { ScoreBoard } from "@/components/ScoreBoard";
-import { SpeechBubble } from "@/components/SpeechBubble";
-import { TopicBanner } from "@/components/TopicBanner";
+import { DiveAnimation, type DivePenaltyPayload } from "@/components/DiveAnimation";
+import { GameChatDock } from "@/components/GameChatDock";
+import { PlayerSlot } from "@/components/PlayerSlot";
+import { PoolBackground } from "@/components/PoolBackground";
+import { RankingBoard } from "@/components/RankingBoard";
+import { TopicHeader } from "@/components/TopicHeader";
 import { useSyncedRoom } from "@/hooks/useSyncedRoom";
 import { getSocket } from "@/lib/socket";
 import { clearSession } from "@/lib/session";
+import type { CharacterId } from "@/lib/characters";
 import type { ChatEntry } from "@/lib/types";
 
 type Props = { params: Promise<{ roomId: string }> };
 
-type Bubble = { text: string; forbiddenMatch?: string; until: number };
-type PenaltyPhase = "none" | "buzz" | "fly" | "splash";
+type SlotBubble = { text: string; forbiddenMatch?: string; until: number };
 
 export default function GamePage({ params }: Props) {
   const { roomId: raw } = use(params);
@@ -28,9 +27,25 @@ export default function GamePage({ params }: Props) {
   const roomRef = useRef(room);
   roomRef.current = room;
 
-  const [bubbles, setBubbles] = useState<Record<string, Bubble>>({});
-  const [penaltyPhase, setPenaltyPhase] = useState<Record<string, PenaltyPhase>>({});
+  const stageRef = useRef<HTMLDivElement>(null);
+  const slotRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const diveBoardRef = useRef<HTMLDivElement>(null);
+
+  const [bubbles, setBubbles] = useState<Record<string, SlotBubble>>({});
+  const [lastSpeakerId, setLastSpeakerId] = useState<string | null>(null);
+  const speakerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [penaltyPayload, setPenaltyPayload] = useState<DivePenaltyPayload | null>(null);
+  const [penaltyFlyingId, setPenaltyFlyingId] = useState<string | null>(null);
+  const [shakingPlayerId, setShakingPlayerId] = useState<string | null>(null);
+  const [scoreDeltaByPlayer, setScoreDeltaByPlayer] = useState<Record<string, number | null>>({});
   const [toasts, setToasts] = useState<string[]>([]);
+  const prevScoresRef = useRef<Record<string, number>>({});
+  const initializedScoresRef = useRef(false);
+
+  const handlePenaltyDone = useCallback(() => {
+    setPenaltyPayload(null);
+    setPenaltyFlyingId(null);
+  }, []);
 
   useEffect(() => {
     if (!room) return;
@@ -40,18 +55,86 @@ export default function GamePage({ params }: Props) {
   }, [room, router]);
 
   useEffect(() => {
-    const socket = getSocket();
-    const runPenalty = (pid: string, nickname: string, reason: "forbidden" | "inactive") => {
-      setPenaltyPhase((m) => ({ ...m, [pid]: "buzz" }));
-      setTimeout(() => setPenaltyPhase((m) => ({ ...m, [pid]: "fly" })), 380);
-      setTimeout(() => setPenaltyPhase((m) => ({ ...m, [pid]: "splash" })), 900);
-      setTimeout(() => setPenaltyPhase((m) => ({ ...m, [pid]: "none" })), 2000);
-      const msg =
-        reason === "forbidden"
-          ? `[${nickname}]님이 금지어를 말했습니다! -10점`
-          : `[${nickname}]님이 1분 동안 말하지 않았습니다! -10점`;
-      setToasts((t) => [...t.slice(-4), msg]);
+    if (!room || room.gameStatus !== "playing") return;
+    if (!initializedScoresRef.current) {
+      for (const p of room.players) prevScoresRef.current[p.id] = p.score;
+      initializedScoresRef.current = true;
+      return;
+    }
+    for (const p of room.players) {
+      const prev = prevScoresRef.current[p.id] ?? p.score;
+      if (p.score < prev) {
+        const d = p.score - prev;
+        setScoreDeltaByPlayer((m) => ({ ...m, [p.id]: d }));
+        window.setTimeout(() => {
+          setScoreDeltaByPlayer((m) => ({ ...m, [p.id]: null }));
+        }, 900);
+      }
+      prevScoresRef.current[p.id] = p.score;
+    }
+  }, [room, room?.players]);
+
+  useEffect(() => {
+    const tick = window.setInterval(() => {
+      const now = Date.now();
+      setBubbles((b) => {
+        const next = { ...b };
+        let changed = false;
+        for (const k of Object.keys(next)) {
+          if (next[k]!.until <= now) {
+            delete next[k];
+            changed = true;
+          }
+        }
+        return changed ? next : b;
+      });
+    }, 400);
+    return () => window.clearInterval(tick);
+  }, []);
+
+  function measurePenaltyRects(pid: string): { from: { x: number; y: number }; to: { x: number; y: number } } | null {
+    const stage = stageRef.current;
+    const slot = slotRefs.current[pid];
+    const dive = diveBoardRef.current;
+    if (!stage || !slot || !dive) return null;
+    const sr = stage.getBoundingClientRect();
+    const a = slot.getBoundingClientRect();
+    const b = dive.getBoundingClientRect();
+    return {
+      from: { x: a.left - sr.left + a.width / 2, y: a.top - sr.top + a.height / 2 },
+      to: { x: b.left - sr.left + b.width / 2, y: b.top - sr.top + b.height / 2 },
     };
+  }
+
+  function runPenalty(pid: string, nickname: string, reason: "forbidden" | "inactive") {
+    const r = roomRef.current;
+    if (!r) return;
+    const p = r.players.find((x) => x.id === pid);
+    const characterId = (p?.character ?? "bear") as CharacterId;
+
+    setShakingPlayerId(pid);
+    window.setTimeout(() => setShakingPlayerId(null), 320);
+
+    const coords = measurePenaltyRects(pid);
+    if (coords) {
+      setPenaltyFlyingId(pid);
+      setPenaltyPayload({
+        key: Date.now(),
+        characterId,
+        from: coords.from,
+        to: coords.to,
+      });
+    }
+
+    const msg =
+      reason === "forbidden"
+        ? `[${nickname}] 금지어! 다이빙대로 출발~`
+        : `[${nickname}] 1분 침묵! 다이빙대로~`;
+    setToasts((t) => [...t.slice(-5), msg]);
+  }
+
+  useEffect(() => {
+    const socket = getSocket();
 
     const onChat = (payload: { entry: ChatEntry }) => {
       const { entry } = payload;
@@ -60,10 +143,14 @@ export default function GamePage({ params }: Props) {
         [entry.playerId]: {
           text: entry.text,
           forbiddenMatch: entry.forbiddenMatch,
-          until: Date.now() + 5200,
+          until: Date.now() + 3000,
         },
       }));
+      setLastSpeakerId(entry.playerId);
+      if (speakerTimerRef.current) clearTimeout(speakerTimerRef.current);
+      speakerTimerRef.current = setTimeout(() => setLastSpeakerId(null), 3200);
     };
+
     const onForbidden = (p: { playerId: string; nickname: string }) => {
       runPenalty(p.playerId, p.nickname, "forbidden");
     };
@@ -78,120 +165,66 @@ export default function GamePage({ params }: Props) {
       socket.off("chat_message", onChat);
       socket.off("forbidden_word_detected", onForbidden);
       socket.off("inactivity_penalty", onInactive);
+      if (speakerTimerRef.current) clearTimeout(speakerTimerRef.current);
     };
   }, []);
-
-  useEffect(() => {
-    const t = setInterval(() => {
-      const now = Date.now();
-      setBubbles((b) => {
-        const next = { ...b };
-        for (const k of Object.keys(next)) {
-          if (next[k]!.until < now) delete next[k];
-        }
-        return next;
-      });
-    }, 500);
-    return () => clearInterval(t);
-  }, []);
-
-  useEffect(() => {
-    if (!playerId) return;
-    const socket = getSocket();
-    const keys = new Set<string>();
-    const onDown = (e: KeyboardEvent) => {
-      const k = e.key.toLowerCase();
-      if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(k)) {
-        e.preventDefault();
-        keys.add(k);
-      }
-    };
-    const onUp = (e: KeyboardEvent) => {
-      keys.delete(e.key.toLowerCase());
-    };
-    window.addEventListener("keydown", onDown);
-    window.addEventListener("keyup", onUp);
-    let raf = 0;
-    let lastEmit = 0;
-    const speed = 3.6;
-    const loop = () => {
-      const r = roomRef.current;
-      if (r?.gameStatus === "playing" && playerId) {
-        const me = r.players.find((p) => p.id === playerId);
-        if (me && !me.isPenalty) {
-          let { x, y } = me;
-          if (keys.has("w") || keys.has("arrowup")) y -= speed;
-          if (keys.has("s") || keys.has("arrowdown")) y += speed;
-          if (keys.has("a") || keys.has("arrowleft")) x -= speed;
-          if (keys.has("d") || keys.has("arrowright")) x += speed;
-          const now = performance.now();
-          if (now - lastEmit > 75) {
-            lastEmit = now;
-            socket.emit("player_move", { roomId: r.id, playerId, x, y });
-          }
-        }
-      }
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("keydown", onDown);
-      window.removeEventListener("keyup", onUp);
-    };
-  }, [playerId, roomId]);
 
   if (!room || !playerId || !room.currentTopic) {
     return (
-      <div className="flex min-h-dvh items-center justify-center text-lg font-bold text-sky-800">
-        게임장 입장 중…
+      <div className="flex min-h-dvh items-center justify-center bg-gradient-to-b from-cyan-200 via-teal-100 to-amber-100 text-lg font-black text-teal-900">
+        풀장 입장 중…
       </div>
     );
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-4 px-3 py-4 lg:flex-row lg:px-6">
-      <section className="flex flex-1 flex-col gap-3">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <TopicBanner topic={room.currentTopic} />
-          <GameTimer seconds={room.remainingSeconds} />
-        </div>
-        <div className="relative">
-          <PoolMap>
-            {room.players.map((p) => {
-              const bubble = bubbles[p.id];
-              const phase = penaltyPhase[p.id] ?? "none";
-              const active = phase !== "none";
-              return (
-                <div
-                  key={p.id}
-                  className="absolute z-10"
-                  style={{ left: p.x, top: p.y, transform: "translate(-50%, -50%)" }}
-                >
-                  {bubble ? (
-                    <div className="absolute -top-16 left-1/2 z-20 w-max -translate-x-1/2">
-                      <SpeechBubble text={bubble.text} forbiddenMatch={bubble.forbiddenMatch} />
-                    </div>
-                  ) : null}
-                  <PenaltyAnimation active={active} phase={phase}>
-                    <Avatar nickname={p.nickname} color={p.avatarColor} isMe={p.id === playerId} />
-                  </PenaltyAnimation>
-                </div>
-              );
-            })}
-          </PoolMap>
-        </div>
-        <ChatBox
-          myId={playerId}
-          log={room.chatLog}
-          onSend={(text) => {
-            getSocket().emit("send_chat", { roomId: room.id, playerId, message: text });
-          }}
-        />
-        <div className="flex justify-between gap-2">
-          <button
+    <div className="flex min-h-dvh flex-col bg-gradient-to-b from-[#a5f3fc] via-[#ccfbf1] to-[#fef9c3] pb-28">
+      <TopicHeader topic={room.currentTopic} seconds={room.remainingSeconds} roundLabel="ROUND 1" />
+
+      <div ref={stageRef} className="relative flex min-h-0 flex-1 flex-col gap-3 px-2 py-3 md:flex-row md:px-4">
+        <section className="flex shrink-0 gap-2 overflow-x-auto pb-1 md:w-[148px] md:flex-col md:overflow-y-auto md:overflow-x-visible md:pr-1">
+          {room.players.map((p, i) => (
+            <PlayerSlot
+              key={p.id}
+              ref={(el) => {
+                slotRefs.current[p.id] = el;
+              }}
+              player={p}
+              slotIndex={i}
+              isMe={p.id === playerId}
+              isRecentSpeaker={lastSpeakerId === p.id}
+              isHiddenForPenalty={penaltyFlyingId === p.id && penaltyPayload !== null}
+              shake={shakingPlayerId === p.id}
+              bubble={bubbles[p.id] ? { text: bubbles[p.id]!.text, forbiddenMatch: bubbles[p.id]!.forbiddenMatch } : null}
+              scoreDelta={scoreDeltaByPlayer[p.id] ?? null}
+            />
+          ))}
+        </section>
+
+        <section className="relative min-h-[280px] flex-1 md:min-h-[380px]">
+          <PoolBackground ref={diveBoardRef} className="h-full w-full">
+            <DiveAnimation payload={penaltyPayload} onDone={handlePenaltyDone} />
+          </PoolBackground>
+        </section>
+
+        <aside className="flex w-full shrink-0 flex-col gap-2 md:w-56">
+          <RankingBoard players={room.players} myId={playerId} />
+          <div className="rounded-3xl border-4 border-white/80 bg-white/75 p-3 shadow-bubble">
+            <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-rose-500">파티 로그</p>
+            <ul className="max-h-28 space-y-1 overflow-y-auto text-[11px] font-semibold text-slate-600">
+              {toasts.length === 0 ? <li className="text-slate-400">조용한 풀…</li> : null}
+              {toasts.map((t, i) => (
+                <li key={`${i}-${t}`} className="rounded-lg bg-rose-50/90 px-2 py-1 text-rose-800">
+                  {t}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <motion.button
             type="button"
-            className="rounded-2xl border-2 border-white bg-white/70 px-4 py-2 text-sm font-bold text-slate-600"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="rounded-2xl border-4 border-white bg-white/80 py-2 text-sm font-black text-slate-600 shadow-md"
             onClick={() => {
               getSocket().emit("leave_room");
               clearSession();
@@ -199,26 +232,16 @@ export default function GamePage({ params }: Props) {
             }}
           >
             나가기
-          </button>
-          <p className="text-xs font-medium text-slate-600">
-            이동: WASD 또는 방향키 · 맵 중심에서 대화를 이어가 보세요!
-          </p>
-        </div>
-      </section>
-      <aside className="flex w-full flex-col gap-3 lg:w-64">
-        <ScoreBoard players={room.players} myId={playerId} />
-        <div className="rounded-3xl border-2 border-white bg-white/80 p-3 text-xs font-semibold text-slate-600 shadow-bubble">
-          <p className="mb-1 font-black text-sky-700">알림</p>
-          <ul className="space-y-1">
-            {toasts.length === 0 ? <li className="text-slate-400">조용해요…</li> : null}
-            {toasts.map((t, i) => (
-              <li key={`${i}-${t}`} className="rounded-xl bg-rose-50 px-2 py-1 text-rose-700">
-                {t}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </aside>
-    </main>
+          </motion.button>
+        </aside>
+      </div>
+
+      <GameChatDock
+        onSend={(text) => {
+          getSocket().emit("send_chat", { roomId: room.id, playerId, message: text });
+        }}
+      />
+    </div>
   );
 }
+

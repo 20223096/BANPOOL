@@ -1,4 +1,5 @@
 import type { GameStatus } from "./gameTypes.js";
+import type { CharacterId } from "./characters.js";
 
 export type { GameStatus };
 
@@ -6,6 +7,7 @@ export interface Player {
   id: string;
   nickname: string;
   avatarColor: string;
+  character: CharacterId;
   x: number;
   y: number;
   score: number;

@@ -2,14 +2,18 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import { useState } from "react";
+import { CharacterSelector } from "@/components/CharacterSelector";
 import { emitWithAck, getSocketUrl, getSocket, waitForSocketConnection } from "@/lib/socket";
 import { saveSession } from "@/lib/session";
+import type { CharacterId } from "@/lib/characters";
 
 export default function LandingPage() {
   const router = useRouter();
   const [nickname, setNickname] = useState("");
   const [joinCode, setJoinCode] = useState("");
+  const [character, setCharacter] = useState<CharacterId>("bear");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -38,11 +42,11 @@ export default function LandingPage() {
       );
       return;
     }
-    const res = await emitWithAck<unknown>(socket, "create_room", { nickname: nick });
+    const res = await emitWithAck<unknown>(socket, "create_room", { nickname: nick, character });
     setBusy(false);
     const r = res as { ok?: boolean; roomId?: string; playerId?: string } | undefined;
     if (r?.ok && r.roomId && r.playerId) {
-      saveSession(r.roomId, r.playerId, nick);
+      saveSession(r.roomId, r.playerId, nick, character);
       goLobby(r.roomId);
     } else {
       setError(
@@ -71,11 +75,11 @@ export default function LandingPage() {
       );
       return;
     }
-    const res = await emitWithAck<unknown>(socket, "join_room", { roomId: code, nickname: nick });
+    const res = await emitWithAck<unknown>(socket, "join_room", { roomId: code, nickname: nick, character });
     setBusy(false);
     const r = res as { ok?: boolean; roomId?: string; playerId?: string; reason?: string } | undefined;
     if (r?.ok && r.roomId && r.playerId) {
-      saveSession(r.roomId, r.playerId, nick);
+      saveSession(r.roomId, r.playerId, nick, character);
       goLobby(r.roomId);
     } else {
       setError(r?.reason || "입장에 실패했어요. 서버 응답이 없으면 백엔드를 확인하세요.");
@@ -83,74 +87,107 @@ export default function LandingPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-4xl flex-col gap-10 px-4 py-10">
-      <header className="text-center">
-        <p className="text-sm font-bold uppercase tracking-[0.35em] text-sky-700/80">Realtime Party</p>
-        <h1 className="mt-2 text-5xl font-black text-slate-900 drop-shadow-sm">BANPOOL</h1>
-        <p className="mx-auto mt-3 max-w-xl text-lg font-semibold text-slate-700">
-          수영장 파티 맵에서 아바타로 돌아다니며 수다를 떨되,{" "}
-          <span className="text-rose-500">금지어</span>와 <span className="text-amber-600">침묵</span>만은
-          피하세요!
+    <main className="relative mx-auto flex min-h-dvh max-w-5xl flex-col gap-8 overflow-hidden px-4 py-8 md:gap-12 md:py-12">
+      <div className="pointer-events-none absolute -left-20 top-10 text-8xl opacity-30">🌴</div>
+      <div className="pointer-events-none absolute -right-16 bottom-32 text-7xl opacity-25">🛟</div>
+
+      <motion.header
+        className="relative text-center"
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45 }}
+      >
+        <p className="text-xs font-black uppercase tracking-[0.4em] text-teal-700/90">Pool Party Live</p>
+        <h1 className="mt-2 bg-gradient-to-r from-[#0d9488] via-[#06b6d4] to-[#eab308] bg-clip-text text-5xl font-black text-transparent drop-shadow-sm md:text-6xl">
+          BANPOOL
+        </h1>
+        <p className="mx-auto mt-3 max-w-xl text-base font-bold text-slate-800 md:text-lg">
+          귀여운 캐릭터로 수영장 파티! <span className="text-rose-500">금지어</span>와{" "}
+          <span className="text-amber-600">1분 침묵</span>만 피하면 돼요.
         </p>
-      </header>
-      <section className="grid gap-6 md:grid-cols-2">
-        <div className="rounded-[2rem] border-4 border-white bg-white/80 p-6 shadow-soft backdrop-blur">
-          <h2 className="text-lg font-black text-slate-800">이렇게 즐겨요</h2>
-          <ol className="mt-3 space-y-2 text-sm font-medium text-slate-600">
-            <li>1. 방을 만들고 코드를 친구에게 공유</li>
-            <li>2. 서로의 금지어를 몰래 지정</li>
-            <li>3. 주제에 맞춰 채팅하며 맵을 돌아다니기</li>
-            <li>4. 금지어 또는 1분 침묵 → 플라잉체어 벌칙 · -10점</li>
-            <li>5. 5분 뒤 최고 점수가 승리!</li>
+      </motion.header>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <motion.section
+          className="rounded-[2rem] border-4 border-white/90 bg-gradient-to-br from-white/90 to-cyan-50/90 p-6 shadow-[0_12px_40px_rgba(6,182,212,0.2)] backdrop-blur"
+          initial={{ opacity: 0, x: -12 }}
+          animate={{ opacity: 1, x: 0 }}
+        >
+          <h2 className="text-lg font-black text-slate-800">파티 가이드</h2>
+          <ol className="mt-4 space-y-2.5 text-sm font-semibold text-slate-600">
+            <li className="flex gap-2">
+              <span className="font-black text-teal-500">1</span> 방 만들고 코드 공유
+            </li>
+            <li className="flex gap-2">
+              <span className="font-black text-teal-500">2</span> 서로 금지어 몰래 지정
+            </li>
+            <li className="flex gap-2">
+              <span className="font-black text-teal-500">3</span> 밸런스 주제로 수다 (순서 없음!)
+            </li>
+            <li className="flex gap-2">
+              <span className="font-black text-rose-500">!</span> 금지어 / 1분 무응답 → 다이빙대 DIVE · -10점
+            </li>
           </ol>
-        </div>
-        <div className="rounded-[2rem] border-4 border-white bg-gradient-to-br from-sky-50 to-cyan-50 p-6 shadow-soft">
-          <label className="block text-sm font-bold text-slate-700">닉네임</label>
+        </motion.section>
+
+        <motion.section
+          className="rounded-[2rem] border-4 border-[#fef08a]/80 bg-gradient-to-b from-white/95 to-amber-50/90 p-6 shadow-[0_12px_40px_rgba(234,179,8,0.15)]"
+          initial={{ opacity: 0, x: 12 }}
+          animate={{ opacity: 1, x: 0 }}
+        >
+          <label className="block text-sm font-black text-slate-700">닉네임</label>
           <input
-            className="mt-1 w-full rounded-2xl border-2 border-sky-100 bg-white px-4 py-3 text-lg font-semibold outline-none ring-sky-200 focus:border-sky-300 focus:ring-2"
+            className="mt-1 w-full rounded-2xl border-4 border-teal-100 bg-white px-4 py-3 text-lg font-bold text-slate-800 outline-none ring-teal-200 focus:border-teal-300 focus:ring-4"
             placeholder="예: 민트고래"
             value={nickname}
             maxLength={16}
             onChange={(e) => setNickname(e.target.value)}
           />
-          <div className="mt-4 flex flex-col gap-2">
-            <button
+
+          <div className="mt-5">
+            <CharacterSelector value={character} onChange={setCharacter} />
+          </div>
+
+          <div className="mt-6 flex flex-col gap-3">
+            <motion.button
               type="button"
               disabled={busy}
+              whileHover={{ scale: busy ? 1 : 1.02 }}
+              whileTap={{ scale: busy ? 1 : 0.98 }}
               onClick={handleCreate}
-              className="rounded-2xl bg-gradient-to-r from-sky-400 to-cyan-400 py-3 text-lg font-black text-white shadow-lg transition hover:brightness-105 disabled:opacity-50"
+              className="rounded-2xl bg-gradient-to-r from-[#2dd4bf] to-[#0ea5e9] py-3.5 text-lg font-black text-white shadow-lg disabled:opacity-50"
             >
               방 만들기
-            </button>
+            </motion.button>
             <div className="flex gap-2">
               <input
-                className="flex-1 rounded-2xl border-2 border-white bg-white/90 px-3 py-2 font-mono font-bold uppercase outline-none focus:ring-2 focus:ring-sky-200"
-                placeholder="방 코드"
+                className="flex-1 rounded-2xl border-4 border-white bg-white/95 px-3 py-2 font-mono font-black uppercase tracking-widest outline-none focus:ring-4 focus:ring-amber-200"
+                placeholder="방코드"
                 value={joinCode}
                 maxLength={6}
                 onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
               />
-              <button
+              <motion.button
                 type="button"
                 disabled={busy}
+                whileHover={{ scale: busy ? 1 : 1.04 }}
+                whileTap={{ scale: busy ? 1 : 0.96 }}
                 onClick={handleJoin}
-                className="rounded-2xl bg-gradient-to-r from-pink-400 to-rose-400 px-4 py-2 font-black text-white shadow-md hover:brightness-105 disabled:opacity-50"
+                className="rounded-2xl bg-gradient-to-r from-[#fb7185] to-[#f472b6] px-5 py-2 font-black text-white shadow-lg disabled:opacity-50"
               >
                 입장
-              </button>
+              </motion.button>
             </div>
           </div>
-          {error ? <p className="mt-3 text-center text-sm font-bold text-rose-500">{error}</p> : null}
-          <p className="mt-4 text-center text-xs text-slate-500">
-            로컬 테스트: 브라우저 탭을 여러 개 열어 각각 다른 닉네임으로 입장해 보세요.
-          </p>
-        </div>
-      </section>
-      <footer className="text-center text-xs text-slate-500">
+          {error ? <p className="mt-3 text-center text-sm font-bold text-rose-600">{error}</p> : null}
+        </motion.section>
+      </div>
+
+      <footer className="text-center text-xs font-medium text-teal-800/70">
         <Link href="https://nextjs.org" className="underline">
           Next.js
         </Link>{" "}
-        + Socket.IO
+        + Socket.IO · Framer Motion
       </footer>
     </main>
   );

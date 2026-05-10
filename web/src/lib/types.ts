@@ -1,9 +1,12 @@
+import type { CharacterId } from "./characters";
+
 export type GameStatus = "waiting" | "setting_words" | "playing" | "finished";
 
 export interface PublicPlayer {
   id: string;
   nickname: string;
   avatarColor: string;
+  character: CharacterId;
   x: number;
   y: number;
   score: number;

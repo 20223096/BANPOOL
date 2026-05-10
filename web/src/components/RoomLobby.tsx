@@ -1,5 +1,5 @@
 import type { RoomState } from "@/lib/types";
-import { Avatar } from "@/components/Avatar";
+import { CharacterSprite } from "@/components/CharacterSprite";
 import { cn } from "@/lib/cn";
 
 type RoomLobbyProps = {
@@ -24,7 +24,17 @@ export function RoomLobby({ room, myId, onStart, onLeave }: RoomLobbyProps) {
         <ul className="flex flex-wrap justify-center gap-3">
           {room.players.map((p) => (
             <li key={p.id} className="flex flex-col items-center gap-1">
-              <Avatar nickname={p.nickname} color={p.avatarColor} isMe={p.id === myId} />
+              <div className="relative">
+                <CharacterSprite id={p.character} size={56} className="h-14 w-14 rounded-2xl ring-4 ring-white shadow-bubble" />
+                {p.id === myId ? (
+                  <span className="absolute -right-1 -top-1 rounded-full bg-amber-300 px-1.5 py-0.5 text-[9px] font-bold text-amber-950 shadow">
+                    ME
+                  </span>
+                ) : null}
+              </div>
+              <span className="max-w-[100px] truncate rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-bold text-slate-700 shadow-sm">
+                {p.nickname}
+              </span>
               {p.id === room.hostId ? (
                 <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-900">
                   HOST
