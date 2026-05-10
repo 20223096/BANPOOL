@@ -1,0 +1,13 @@
+{
+  "name": "banpool",
+  "private": true,
+  "workspaces": ["server", "web"],
+  "scripts": {
+    "dev": "concurrently -n server,web -c cyan,magenta \"npm run dev -w server\" \"npm run dev -w web\"",
+    "build": "npm run build -w web && npm run build -w server",
+    "start": "concurrently -n server,web -c cyan,magenta \"npm run start -w server\" \"npm run start -w web\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
