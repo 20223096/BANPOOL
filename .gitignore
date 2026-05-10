@@ -5,3 +5,6 @@ dist
 .env.local
 .DS_Store
 *.log
+
+# 실수로 상위 폴더 안에 clone한 중복 저장소 (작업 루트는 이 디렉터리 자체)
+BANPOOL/
