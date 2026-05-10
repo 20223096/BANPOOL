@@ -1,3 +1,5 @@
+"use client";
+
 import type { RoomState } from "@/lib/types";
 import { CharacterSprite } from "@/components/CharacterSprite";
 import { cn } from "@/lib/cn";
@@ -24,8 +26,8 @@ export function RoomLobby({ room, myId, onStart, onLeave }: RoomLobbyProps) {
         <ul className="flex flex-wrap justify-center gap-3">
           {room.players.map((p) => (
             <li key={p.id} className="flex flex-col items-center gap-1">
-              <div className="relative">
-                <CharacterSprite id={p.character} size={56} className="h-14 w-14 rounded-2xl ring-4 ring-white shadow-bubble" />
+              <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-b from-white to-teal-50 ring-4 ring-white shadow-bubble">
+                <CharacterSprite id={p.character} size={56} priority className="max-h-[52px] max-w-[52px]" />
                 {p.id === myId ? (
                   <span className="absolute -right-1 -top-1 rounded-full bg-amber-300 px-1.5 py-0.5 text-[9px] font-bold text-amber-950 shadow">
                     ME

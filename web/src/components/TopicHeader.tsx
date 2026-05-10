@@ -22,7 +22,7 @@ export function TopicHeader({ topic, seconds, roundLabel = "ROUND 1" }: TopicHea
         <GameTimer seconds={seconds} />
       </motion.div>
       <div className="min-w-0 flex-1 text-center">
-        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-teal-700/90">밸런스 게임 주제</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-teal-700/90">연애 밸런스 주제</p>
         <motion.p
           layout
           className="mx-auto mt-1 max-w-3xl text-sm font-black leading-snug text-slate-800 md:text-base"

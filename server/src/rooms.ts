@@ -415,7 +415,7 @@ export function sanitizeRoom(room: Room) {
       id: p.id,
       nickname: p.nickname,
       avatarColor: p.avatarColor,
-      character: p.character,
+      character: normalizeCharacterId(p.character),
       x: p.x,
       y: p.y,
       score: p.score,

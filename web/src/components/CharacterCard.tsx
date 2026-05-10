@@ -26,8 +26,8 @@ export function CharacterCard({ id, label, selected, onSelect }: CharacterCardPr
           : "border-white/90 bg-white/70 hover:bg-white",
       )}
     >
-      <div className="relative h-[72px] w-[72px]">
-        <CharacterSprite id={id} size={72} className="h-full w-full" />
+      <div className="relative flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-b from-white to-teal-50/80 ring-2 ring-white/90">
+        <CharacterSprite id={id} size={72} priority className="max-h-[68px] max-w-[68px]" />
       </div>
       <span className="text-[11px] font-black text-slate-700">{label}</span>
     </motion.button>

@@ -1,6 +1,6 @@
 import { STORAGE_CHARACTER, STORAGE_NICKNAME, STORAGE_PLAYER_ID, STORAGE_ROOM_ID } from "./constants";
 import type { CharacterId } from "./characters";
-import { isCharacterId } from "./characters";
+import { coerceCharacterId } from "./characters";
 
 export function saveSession(
   roomId: string,
@@ -27,7 +27,7 @@ export function readSession(): {
   const nickname = sessionStorage.getItem(STORAGE_NICKNAME);
   const ch = sessionStorage.getItem(STORAGE_CHARACTER);
   if (!roomId || !playerId || !nickname) return null;
-  const character = ch && isCharacterId(ch) ? ch : "bear";
+  const character = coerceCharacterId(ch);
   return { roomId, playerId, nickname, character };
 }
 

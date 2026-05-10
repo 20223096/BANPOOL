@@ -40,7 +40,7 @@ export function ForbiddenWordSetup({ room, myId, onSubmit }: ForbiddenWordSetupP
               className="flex flex-col gap-2 rounded-2xl border-2 border-sky-100 bg-sky-50/50 p-3"
             >
               <div className="flex items-center gap-2">
-                <CharacterSprite id={p.character} size={40} className="h-10 w-10 rounded-xl ring-2 ring-white shadow-sm" />
+                <CharacterSprite id={p.character} size={40} priority className="h-10 w-10 rounded-xl object-contain ring-2 ring-white shadow-sm" />
                 <p className="text-sm font-bold text-slate-800">
                   <span className="text-sky-600">{p.nickname}</span>님의 금지어
                 </p>

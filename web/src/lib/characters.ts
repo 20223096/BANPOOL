@@ -25,5 +25,14 @@ export function characterSrc(id: CharacterId): string {
 }
 
 export function isCharacterId(s: string): s is CharacterId {
-  return (CHARACTER_IDS as readonly string[]).includes(s);
+  const t = s.trim().toLowerCase();
+  return (CHARACTER_IDS as readonly string[]).includes(t);
+}
+
+/** 소켓/서버에서 온 값을 안전하게 캐릭터 id로 (대소문자·공백 허용) */
+export function coerceCharacterId(raw: unknown): CharacterId {
+  if (raw == null || raw === "") return "bear";
+  const t = String(raw).trim().toLowerCase();
+  if ((CHARACTER_IDS as readonly string[]).includes(t)) return t as CharacterId;
+  return "bear";
 }

@@ -54,8 +54,8 @@ export const PlayerSlot = forwardRef<HTMLDivElement, PlayerSlotProps>(function P
             </motion.div>
           ) : null}
         </AnimatePresence>
-        <div className="relative mt-1 h-[68px] w-[68px] md:h-[76px] md:w-[76px]">
-          <CharacterSprite id={player.character} size={76} className="h-full w-full" />
+        <div className="relative flex h-[76px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-b from-white to-cyan-50 ring-4 ring-white shadow-inner">
+          <CharacterSprite id={player.character} size={76} priority className="max-h-[72px] max-w-[72px]" />
           <AnimatePresence>
             {scoreDelta ? (
               <motion.span

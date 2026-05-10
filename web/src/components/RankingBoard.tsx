@@ -34,7 +34,9 @@ export function RankingBoard({ players, myId }: RankingBoardProps) {
             >
               <span className="flex min-w-0 items-center gap-2">
                 <span className="w-5 text-center text-xs font-black text-slate-400">{idx + 1}</span>
-                <CharacterSprite id={p.character} size={28} className="h-7 w-7 shrink-0 rounded-full ring-2 ring-white" />
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white ring-2 ring-white">
+                  <CharacterSprite id={p.character} size={28} className="max-h-[26px] max-w-[26px]" />
+                </div>
                 <span className="truncate font-bold text-slate-800">{p.nickname}</span>
                 {p.id === myId ? (
                   <span className="shrink-0 text-[9px] font-black text-sky-600">ME</span>
