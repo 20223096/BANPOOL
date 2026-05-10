@@ -26,13 +26,15 @@ export default function LandingPage() {
     setBusy(true);
     setError(null);
     const socket = getSocket();
-    const connected = await waitForSocketConnection();
+    const { ok: connected, detail } = await waitForSocketConnection();
     if (!connected) {
       setBusy(false);
       setError(
-        "게임 서버에 연결되지 않았어요. Vercel 환경 변수 NEXT_PUBLIC_SOCKET_URL에 백엔드 URL을 넣고 재배포했는지 확인하세요. (지금 시도 주소: " +
+        "게임 서버에 연결되지 않았어요. (시도 주소: " +
           getSocketUrl() +
-          ")",
+          ")" +
+          (detail ? ` 상세: ${detail}` : "") +
+          " · Railway의 CLIENT_ORIGIN에 지금 접속 중인 Vercel 주소(https 포함, 끝 / 없음)를 넣고 재배포했는지 확인하세요.",
       );
       return;
     }
@@ -61,13 +63,11 @@ export default function LandingPage() {
     setBusy(true);
     setError(null);
     const socket = getSocket();
-    const connected = await waitForSocketConnection();
+    const { ok: connected, detail } = await waitForSocketConnection();
     if (!connected) {
       setBusy(false);
       setError(
-        "게임 서버에 연결되지 않았어요. NEXT_PUBLIC_SOCKET_URL과 백엔드 배포를 확인하세요. (시도: " +
-          getSocketUrl() +
-          ")",
+        "게임 서버에 연결되지 않았어요. (시도: " + getSocketUrl() + ")" + (detail ? ` 상세: ${detail}` : ""),
       );
       return;
     }

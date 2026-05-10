@@ -11,35 +11,55 @@ export function getSocket(): Socket {
   if (!socket) {
     const url = getSocketUrl();
     socket = io(url, {
-      /** websocket만 먼저 쓰면 일부 환경에서 첫 핸드셰이크가 실패했다가 connect_error만 나고 끊기는 경우가 있어 polling을 앞에 둡니다. */
       transports: ["polling", "websocket"],
       reconnection: true,
-      reconnectionAttempts: 8,
-      reconnectionDelay: 800,
-      timeout: 20000,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      timeout: 25000,
     });
   }
   return socket;
 }
 
+export type WaitResult = { ok: boolean; detail?: string };
+
 /**
- * 소켓이 붙을 때까지 기다립니다.
- * 주의: connect_error는 재시도 과정에서도 날 수 있어 "첫 에러"로 실패 판정하지 않습니다.
- * (이전 버전은 여기서 잘못 막혀 배포 환경에서 항상 실패하는 경우가 있었습니다.)
+ * 소켓 연결 대기. connect 이벤트를 놓치지 않도록 microtask에서 한 번 더 확인합니다.
+ * 실패 시 마지막 connect_error 메시지를 detail로 넘깁니다 (원인 파악용).
  */
-export function waitForSocketConnection(timeoutMs = 20000): Promise<boolean> {
+export function waitForSocketConnection(timeoutMs = 25000): Promise<WaitResult> {
   const s = getSocket();
-  if (s.connected) return Promise.resolve(true);
+  if (s.connected) return Promise.resolve({ ok: true });
+
+  let lastError = "";
+  const onErr = (e: Error) => {
+    lastError = e?.message || String(e);
+  };
+
   return new Promise((resolve) => {
-    const done = (ok: boolean) => {
+    let settled = false;
+    const finish = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timer);
       s.off("connect", onConnect);
-      resolve(ok);
+      s.off("connect_error", onErr);
+      resolve({ ok, detail: ok ? undefined : lastError || undefined });
     };
-    const onConnect = () => done(true);
-    const timer = setTimeout(() => done(false), timeoutMs);
-    s.once("connect", onConnect);
-    if (!s.connected) s.connect();
+
+    const onConnect = () => finish(true);
+    const timer = setTimeout(() => finish(false), timeoutMs);
+
+    s.on("connect_error", onErr);
+    s.on("connect", onConnect);
+
+    queueMicrotask(() => {
+      if (s.connected) finish(true);
+    });
+
+    if (!s.connected) {
+      s.connect();
+    }
   });
 }
 

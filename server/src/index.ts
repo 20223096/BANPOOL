@@ -25,13 +25,18 @@ const ALLOWED_ORIGINS = CLIENT_ORIGIN_RAW.split(",")
   .map((s) => s.trim().replace(/\/$/, ""))
   .filter(Boolean);
 
+/** CORS 허용: 명시 목록 + 모든 *.vercel.app (프리뷰 URL 포함) */
+function isOriginAllowed(origin: string | undefined): boolean {
+  if (!origin) return true;
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  return /^https:\/\/[^\s/]+\.vercel\.app$/i.test(origin);
+}
+
 const app = express();
 app.use(
   cors({
     origin(origin, cb) {
-      if (!origin) return cb(null, true);
-      if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
-      cb(null, false);
+      cb(null, isOriginAllowed(origin));
     },
     credentials: false,
   }),
@@ -43,7 +48,9 @@ app.get("/health", (_req, res) => {
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: ALLOWED_ORIGINS.length === 1 ? ALLOWED_ORIGINS[0] : ALLOWED_ORIGINS,
+    origin(origin, cb) {
+      cb(null, isOriginAllowed(origin));
+    },
     methods: ["GET", "POST"],
     credentials: false,
   },
