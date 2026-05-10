@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { getSocket } from "@/lib/socket";
+import { emitWithAck, getSocketUrl, getSocket, waitForSocketConnection } from "@/lib/socket";
 import { saveSession } from "@/lib/session";
 
 export default function LandingPage() {
@@ -17,7 +17,7 @@ export default function LandingPage() {
     router.push(`/lobby/${roomId}`);
   }
 
-  function handleCreate() {
+  async function handleCreate() {
     const nick = nickname.trim();
     if (!nick) {
       setError("닉네임을 입력해 주세요.");
@@ -26,19 +26,32 @@ export default function LandingPage() {
     setBusy(true);
     setError(null);
     const socket = getSocket();
-    socket.emit("create_room", { nickname: nick }, (res: unknown) => {
+    const connected = await waitForSocketConnection();
+    if (!connected) {
       setBusy(false);
-      const r = res as { ok?: boolean; roomId?: string; playerId?: string };
-      if (r?.ok && r.roomId && r.playerId) {
-        saveSession(r.roomId, r.playerId, nick);
-        goLobby(r.roomId);
-      } else {
-        setError("방 만들기에 실패했어요. 다시 시도해 주세요.");
-      }
-    });
+      setError(
+        "게임 서버에 연결되지 않았어요. Vercel 환경 변수 NEXT_PUBLIC_SOCKET_URL에 백엔드 URL을 넣고 재배포했는지 확인하세요. (지금 시도 주소: " +
+          getSocketUrl() +
+          ")",
+      );
+      return;
+    }
+    const res = await emitWithAck<unknown>(socket, "create_room", { nickname: nick });
+    setBusy(false);
+    const r = res as { ok?: boolean; roomId?: string; playerId?: string } | undefined;
+    if (r?.ok && r.roomId && r.playerId) {
+      saveSession(r.roomId, r.playerId, nick);
+      goLobby(r.roomId);
+    } else {
+      setError(
+        r
+          ? "방 만들기에 실패했어요. 다시 시도해 주세요."
+          : "서버 응답이 없어요. 백엔드가 켜져 있는지·주소가 맞는지 확인하세요.",
+      );
+    }
   }
 
-  function handleJoin() {
+  async function handleJoin() {
     const nick = nickname.trim();
     const code = joinCode.trim().toUpperCase();
     if (!nick || !code) {
@@ -48,16 +61,25 @@ export default function LandingPage() {
     setBusy(true);
     setError(null);
     const socket = getSocket();
-    socket.emit("join_room", { roomId: code, nickname: nick }, (res: unknown) => {
+    const connected = await waitForSocketConnection();
+    if (!connected) {
       setBusy(false);
-      const r = res as { ok?: boolean; roomId?: string; playerId?: string; reason?: string };
-      if (r?.ok && r.roomId && r.playerId) {
-        saveSession(r.roomId, r.playerId, nick);
-        goLobby(r.roomId);
-      } else {
-        setError(r?.reason || "입장에 실패했어요.");
-      }
-    });
+      setError(
+        "게임 서버에 연결되지 않았어요. NEXT_PUBLIC_SOCKET_URL과 백엔드 배포를 확인하세요. (시도: " +
+          getSocketUrl() +
+          ")",
+      );
+      return;
+    }
+    const res = await emitWithAck<unknown>(socket, "join_room", { roomId: code, nickname: nick });
+    setBusy(false);
+    const r = res as { ok?: boolean; roomId?: string; playerId?: string; reason?: string } | undefined;
+    if (r?.ok && r.roomId && r.playerId) {
+      saveSession(r.roomId, r.playerId, nick);
+      goLobby(r.roomId);
+    } else {
+      setError(r?.reason || "입장에 실패했어요. 서버 응답이 없으면 백엔드를 확인하세요.");
+    }
   }
 
   return (
