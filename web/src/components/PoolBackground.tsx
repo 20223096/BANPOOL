@@ -82,16 +82,24 @@ export const PoolBackground = forwardRef<HTMLDivElement, PoolBackgroundProps>(fu
           <span className="text-[10px] font-black text-rose-900/70">LOUNGE</span>
         </div>
       </div>
-      {/* diving board zone — bottom right */}
+      {/* flying chair zone — bottom right (금지어 페널티 착석·발사 지점) */}
       <div className="pointer-events-none absolute bottom-2 right-4 flex flex-col items-center gap-0.5">
         <div ref={diveBoardRef} className="flex flex-col items-center">
-          <div className="h-2 w-28 rounded-full bg-slate-400 shadow-md ring-2 ring-white" />
-          <div className="h-12 w-3 rounded-full bg-gradient-to-b from-slate-500 to-slate-600 shadow-lg ring-2 ring-white/80" />
-          <div className="-mt-1 flex h-10 w-36 items-end justify-center rounded-t-2xl bg-gradient-to-r from-amber-200 via-amber-100 to-amber-200 pb-1 shadow-lg ring-4 ring-amber-50">
-            <span className="text-[11px] font-black tracking-widest text-amber-900/80">DIVE</span>
+          <div className="relative flex h-14 w-24 items-end justify-center">
+            <div className="absolute bottom-8 left-1/2 h-3 w-20 -translate-x-1/2 rounded-full bg-violet-400/90 shadow-md ring-2 ring-white/90" />
+            <div className="absolute bottom-[2.15rem] left-1/2 h-7 w-16 -translate-x-1/2 rounded-b-2xl rounded-t-lg bg-gradient-to-b from-sky-300 via-sky-200 to-cyan-200 shadow-lg ring-2 ring-white/90">
+              <span className="absolute left-1 top-1 text-[10px] opacity-80">✦</span>
+            </div>
+            <div className="absolute bottom-6 left-2 h-5 w-2 rounded-full bg-white/70 blur-[1px]" />
+            <div className="absolute bottom-6 right-2 h-5 w-2 rounded-full bg-white/70 blur-[1px]" />
+            <div className="h-2 w-28 rounded-full bg-slate-400/90 shadow-md ring-2 ring-white" />
+          </div>
+          <div className="h-10 w-3 rounded-full bg-gradient-to-b from-slate-500 to-slate-600 shadow-lg ring-2 ring-white/80" />
+          <div className="-mt-0.5 flex h-9 w-32 items-end justify-center rounded-t-2xl bg-gradient-to-r from-violet-200 via-fuchsia-100 to-violet-200 pb-1 shadow-lg ring-4 ring-white/70">
+            <span className="text-[10px] font-black tracking-widest text-violet-900/85">FLY</span>
           </div>
         </div>
-        <p className="text-[10px] font-bold text-white/90 drop-shadow">다이빙대</p>
+        <p className="text-[10px] font-bold text-white/90 drop-shadow">플라잉 체어</p>
       </div>
       {/* water shimmer */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[42%] bg-gradient-to-t from-cyan-500/20 via-transparent to-transparent" />

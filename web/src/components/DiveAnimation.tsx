@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { CharacterId } from "@/lib/characters";
 import { CharacterSprite } from "@/components/CharacterSprite";
@@ -13,14 +13,14 @@ export type DivePenaltyPayload = {
   to: { x: number; y: number };
 };
 
-/** 다이빙대 위에 올라선 뒤 잠시 멈춤 → 물로 낙하 → 스플래시 */
+/** 삐빅 → 플라잉 체어로 이동 → 체어 위에서 휴식 → 뒤로 포물선 낙하 → 물 장면 */
 type Phase = "idle" | "beep" | "approach" | "board" | "fall" | "splash";
 
-const BEEP_MS = 720;
-const APPROACH_MS = 1200;
-const ON_BOARD_MS = 900;
-const FALL_MS = 900;
-const SPLASH_MS = 1100;
+const BEEP_MS = 680;
+const APPROACH_MS = 1280;
+const ON_BOARD_MS = 1750;
+const FALL_MS = 1480;
+const SPLASH_MS = 1400;
 
 export function DiveAnimation({
   payload,
@@ -31,6 +31,18 @@ export function DiveAnimation({
 }) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [splash, setSplash] = useState<{ x: number; y: number } | null>(null);
+
+  const arc = useMemo(() => {
+    if (!payload) return null;
+    const boardY = payload.to.y - 36;
+    const poolY = payload.to.y + 132;
+    const startX = payload.to.x;
+    const back = 168;
+    const endX = startX - back;
+    const apexY = boardY - 62;
+    const midX = (startX + endX) / 2 - 12;
+    return { boardY, poolY, startX, endX, apexY, midX };
+  }, [payload]);
 
   useEffect(() => {
     if (!payload) {
@@ -46,8 +58,8 @@ export function DiveAnimation({
     const t3 = window.setTimeout(() => setPhase("fall"), BEEP_MS + APPROACH_MS + ON_BOARD_MS);
     const t4 = window.setTimeout(() => {
       setPhase("splash");
-      const poolY = payload.to.y + 128;
-      setSplash({ x: payload.to.x, y: poolY });
+      const poolY = payload.to.y + 132;
+      setSplash({ x: payload.to.x - 168, y: poolY });
     }, BEEP_MS + APPROACH_MS + ON_BOARD_MS + FALL_MS);
     const t5 = window.setTimeout(() => {
       setPhase("idle");
@@ -64,10 +76,9 @@ export function DiveAnimation({
     };
   }, [payload, onDone]);
 
-  if (!payload) return null;
+  if (!payload || !arc) return null;
 
-  const boardY = payload.to.y - 36;
-  const poolY = payload.to.y + 132;
+  const { boardY, poolY, startX, endX, apexY, midX } = arc;
 
   const showCharacter =
     phase === "beep" || phase === "approach" || phase === "board" || phase === "fall";
@@ -108,64 +119,87 @@ export function DiveAnimation({
                   }
                 : phase === "approach"
                   ? {
-                      left: payload.to.x,
+                      left: startX,
                       top: boardY,
                       scale: 1.08,
-                      rotate: -10,
+                      rotate: -8,
                       opacity: 1,
                     }
                   : phase === "board"
                     ? {
-                        left: payload.to.x,
+                        left: startX,
                         top: boardY,
-                        scale: [1.08, 1.14, 1.1, 1.08],
-                        rotate: [-10, -6, -8, -10],
+                        scale: [1.08, 1.12, 1.09, 1.08],
+                        rotate: [-8, -5, -7, -8],
                         opacity: 1,
                       }
                     : {
-                        left: payload.to.x,
-                        top: poolY,
-                        scale: 0.78,
-                        rotate: 22,
-                        opacity: 0.28,
+                        left: [startX, midX, endX],
+                        top: [boardY, apexY, poolY],
+                        scale: [1.08, 1.02, 0.82],
+                        rotate: [-8, -18, 28],
+                        opacity: [1, 1, 0.35],
                       }
             }
             transition={
               phase === "beep"
                 ? { duration: 0.65, ease: "easeInOut" }
                 : phase === "approach"
-                  ? { duration: 1.12, ease: [0.22, 1, 0.36, 1] }
+                  ? { duration: 1.22, ease: [0.2, 0.9, 0.2, 1] }
                   : phase === "board"
-                    ? { duration: 0.88, ease: "easeInOut" }
-                    : { duration: 0.88, ease: [0.55, 0, 0.85, 0.4] }
+                    ? { duration: 0.95, ease: "easeInOut" }
+                    : {
+                        duration: FALL_MS / 1000,
+                        times: [0, 0.48, 1],
+                        ease: [0.25, 0.1, 0.25, 1],
+                      }
             }
           >
             {phase === "approach" ? (
               <motion.span
-                className="absolute -right-12 -top-1 whitespace-nowrap text-base font-black text-sky-900 drop-shadow-[0_1px_0_white]"
+                className="absolute -right-14 -top-1 whitespace-nowrap text-base font-black text-sky-900 drop-shadow-[0_1px_0_white]"
                 initial={{ opacity: 0, x: -6 }}
-                animate={{ opacity: [0, 1, 0.85, 0], x: [0, 32, 36] }}
-                transition={{ duration: 0.75, ease: "easeOut" }}
+                animate={{ opacity: [0, 1, 0.85, 0], x: [0, 28, 34] }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
               >
-                다이빙대로 쓔윽—
+                플라잉 체어로 쓔윽—
               </motion.span>
             ) : null}
             {phase === "fall" ? (
               <motion.span
-                className="absolute -left-10 top-8 whitespace-nowrap text-sm font-black text-cyan-900 drop-shadow-[0_1px_0_white]"
+                className="absolute -left-12 top-6 whitespace-nowrap text-sm font-black text-cyan-900 drop-shadow-[0_1px_0_white]"
                 initial={{ opacity: 0 }}
-                animate={{ opacity: [0, 1, 0] }}
-                transition={{ duration: 0.55 }}
+                animate={{ opacity: [0, 1, 0.75, 0] }}
+                transition={{ duration: 0.95, ease: "easeOut" }}
               >
-                슉…
+                슝…
               </motion.span>
             ) : null}
-            <CharacterSprite id={payload.characterId} size={84} priority className="relative z-10" />
+
+            <div className="relative">
+              <CharacterSprite id={payload.characterId} size={84} priority className="relative z-10" />
+              {/* water reflection while moving toward pool */}
+              {(phase === "approach" || phase === "board" || phase === "fall") && (
+                <div
+                  className="pointer-events-none absolute left-1/2 top-[88%] z-0 -translate-x-1/2 scale-y-[-1] opacity-[0.22] blur-[0.35px]"
+                  style={{ maskImage: "linear-gradient(to bottom, black 15%, transparent 75%)" }}
+                >
+                  <CharacterSprite id={payload.characterId} size={84} priority className="saturate-50" />
+                </div>
+              )}
+            </div>
           </motion.div>
         ) : null}
       </AnimatePresence>
 
-      {splash ? <SplashEffect x={splash.x} y={splash.y} active={phase === "splash"} /> : null}
+      {splash ? (
+        <SplashEffect
+          x={splash.x}
+          y={splash.y}
+          active={phase === "splash"}
+          characterId={payload.characterId}
+        />
+      ) : null}
     </div>
   );
 }

@@ -128,8 +128,8 @@ export default function GamePage({ params }: Props) {
 
     const msg =
       reason === "forbidden"
-        ? `[${nickname}] 금지어! 다이빙대로 출발~`
-        : `[${nickname}] 1분 침묵! 다이빙대로~`;
+        ? `[${nickname}] 금지어! 플라잉 체어로 출발~`
+        : `[${nickname}] 1분 침묵! 플라잉 체어로~`;
     setToasts((t) => [...t.slice(-5), msg]);
   }
 

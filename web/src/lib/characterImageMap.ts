@@ -11,12 +11,12 @@ import penguin from "@/assets/characters/penguin.png";
 
 const byId: Record<CharacterId, StaticImageData> = {
   bear,
-  rabbit,
   cat,
   dog,
   hamster,
   fox,
   penguin,
+  rabbit,
 };
 
 /** 번들된 PNG — `public/` 미배포·경로 이슈와 무관하게 로비/게임에서 동일하게 표시 */

@@ -125,7 +125,7 @@ export default function LandingPage() {
               <span className="font-black text-teal-500">3</span> 밸런스 주제로 수다 (순서 없음!)
             </li>
             <li className="flex gap-2">
-              <span className="font-black text-rose-500">!</span> 금지어 / 1분 무응답 → 다이빙대 DIVE · -10점
+              <span className="font-black text-rose-500">!</span> 금지어 / 1분 무응답 → 플라잉 체어 · -10점
             </li>
           </ol>
         </motion.section>

@@ -1,11 +1,11 @@
 export const CHARACTER_IDS = [
   "bear",
-  "rabbit",
   "cat",
   "dog",
   "hamster",
   "fox",
   "penguin",
+  "rabbit",
 ] as const;
 
 export type CharacterId = (typeof CHARACTER_IDS)[number];
